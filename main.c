@@ -46,7 +46,7 @@ char map[HEIGHT][WIDTH] = {
 	{' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',}
 };
 
-block player = {0,0,2};
+block player = {10,4,2};
 
 void drawBlock(block obj){
 	attron(COLOR_PAIR(obj.colour));
@@ -62,6 +62,14 @@ void drawMap(char data[HEIGHT][WIDTH]){
 			mvaddch(y,x,data[y][x]);
 			//attron(COLOR_PAIR(data[y][x]));	
 		}
+	}
+}
+
+int canMove(int x, int y) {
+	if (map[y][x] == '+') {
+		return 1;
+	}	else {
+		return 0;
 	}
 }
 
@@ -106,16 +114,16 @@ void main(){
 				running = 0;
 				break;
 			case KEY_UP:
-				player.y--;
+				if (canMove(player.x,player.y-1)) { player.y--; }
 				break;
 			case KEY_DOWN:
-				player.y++;
+				if (canMove(player.x,player.y+1)) { player.y++; }
 				break;
 			case KEY_RIGHT:
-				player.x++;
+				if (canMove(player.x+1,player.y)) { player.x++; }
 				break;
 			case KEY_LEFT:
-				player.x--;
+				if (canMove(player.x-1,player.y)) { player.x--; }
 				break;
 			default:
 				break;
