@@ -49,7 +49,7 @@ void main(){
 
 void render(){
 	clear();
-	mvaddch(player.y,player.x,'@');
+	mvaddch(player.y,player.x,'#');
 	refresh();
 }
 
