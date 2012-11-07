@@ -15,7 +15,7 @@ void main(){
 	keypad(stdscr, TRUE);
 	noecho();
 	curs_set(0);
-	int step = 30*1000;
+	int step = 17*1000;
 	int in;
 	int running = 1;
 	while (running) {

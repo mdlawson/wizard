@@ -1,0 +1,7 @@
+LDFLAGS=-lcurses
+CFLAGS=
+SOURCES=main.c
+EXECUTABLE=game
+
+all:
+	gcc $(SOURCES) $(LDFLAGS) -o $(EXECUTABLE)
