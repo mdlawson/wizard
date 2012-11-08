@@ -4,14 +4,36 @@
 #define WIDTH 80
 #define HEIGHT 30
 
-#define COLOR_WALL 20
-#define COLOR_FLOOR 21
+#define GREEN 4
+#define RED 3
+
+#define MAX_BULLETS 20
+#define BULLET_LIFE 10
+
+#define STEP 20
+
+typedef enum {north,east,south,west} dir;
 
 typedef struct {
 	int x;
 	int y;
 	int colour;
+	char character;
+	dir direction;
 } block;
+
+typedef struct {
+	int x;
+	int y;
+	dir direction;
+	int damage;
+	int speed;
+	int life;
+	int colour;
+} bullet;
+
+int nextBullet = 0;
+bullet bullets[MAX_BULLETS] = {-1,-1,north,0,0,-1, RED};
 
 char map[HEIGHT][WIDTH] = {
 	{' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',},
@@ -46,11 +68,11 @@ char map[HEIGHT][WIDTH] = {
 	{' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',}
 };
 
-block player = {10,4,2};
+block player = {10,4,2, ' ', south};
 
 void drawBlock(block obj){
 	attron(COLOR_PAIR(obj.colour));
-	mvaddch(obj.y,obj.x,' ');
+	mvaddch(obj.y,obj.x,obj.character);
 	attroff(COLOR_PAIR(obj.colour));
 }
 
@@ -65,6 +87,65 @@ void drawMap(char data[HEIGHT][WIDTH]){
 	}
 }
 
+void drawBullets(){
+	int i;
+	for (i = 0; i < MAX_BULLETS; i++){
+		if (bullets[i].life > -1) {
+			char c;
+			switch (bullets[i].direction) {
+				case north:
+				case south:
+					c = '|';
+					break;
+				case east:
+				case west:
+					c = '-';
+					break;
+			}
+			attron(COLOR_PAIR(RED));
+			mvaddch(bullets[i].y,bullets[i].x,c);
+			attroff(COLOR_PAIR(RED));
+		}
+	}
+}
+
+void updateBullets(){
+	int i;
+	for (i = 0; i < MAX_BULLETS; i++) {
+		if (bullets[i].life > -1) {
+			switch (bullets[i].direction) {
+				case north:
+					bullets[i].y-=bullets[i].speed;
+					break;
+				case south:
+					bullets[i].y+=bullets[i].speed;
+					break;
+				case east:
+					bullets[i].x+=bullets[i].speed;
+					break;
+				case west:
+					bullets[i].x-=bullets[i].speed;
+					break;
+			}
+			bullets[i].life--;
+			if (!canMove(bullets[i].x,bullets[i].y)) { bullets[i].life = -1; }
+			if (bullets[i].life == -1) {
+				nextBullet = i;
+			}
+		}
+	}
+}
+
+void fireBullet(block from, int speed, int damage){
+	bullets[nextBullet].x = from.x;
+	bullets[nextBullet].y = from.y;
+	bullets[nextBullet].direction = from.direction;
+	bullets[nextBullet].speed = speed;
+	bullets[nextBullet].damage = damage;
+	bullets[nextBullet].life = BULLET_LIFE;
+	nextBullet++;
+}
+
 int canMove(int x, int y) {
 	if (map[y][x] == '+') {
 		return 1;
@@ -76,12 +157,13 @@ int canMove(int x, int y) {
 void render(){
 	clear();
 	drawMap(map);
+	drawBullets();
 	drawBlock(player);
 	refresh();
 }
 
 void update(){
-
+	updateBullets();
 }
 
 void main(){
@@ -94,16 +176,13 @@ void main(){
 	curs_set(0);
 	start_color();
 
-	init_color(COLOR_WALL,800,800,800);
-	init_color(COLOR_FLOOR,400,400,400);
-
 	init_pair(1,COLOR_WHITE,COLOR_BLACK);
 	init_pair(2,COLOR_WHITE,COLOR_BLUE);
-	init_pair(3,COLOR_WHITE,COLOR_FLOOR);
-	init_pair(4,COLOR_WHITE,COLOR_WALL);
+	init_pair(RED,COLOR_RED,COLOR_BLACK);
+	init_pair(GREEN,COLOR_GREEN,COLOR_BLACK);
 
 
-	int step = 40*1000;
+	int step = STEP*1000;
 	int in;
 	int running = 1;
 	while (running) {
@@ -114,17 +193,23 @@ void main(){
 				running = 0;
 				break;
 			case KEY_UP:
+				player.direction = north;
 				if (canMove(player.x,player.y-1)) { player.y--; }
 				break;
 			case KEY_DOWN:
+				player.direction = south;
 				if (canMove(player.x,player.y+1)) { player.y++; }
 				break;
 			case KEY_RIGHT:
+				player.direction = east;
 				if (canMove(player.x+1,player.y)) { player.x++; }
 				break;
 			case KEY_LEFT:
+				player.direction = west;
 				if (canMove(player.x-1,player.y)) { player.x--; }
 				break;
+			case 'z':
+				fireBullet(player,1,1);
 			default:
 				break;
 		}
