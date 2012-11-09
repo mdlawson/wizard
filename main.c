@@ -1,5 +1,6 @@
 #include <ncurses.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #define WIDTH 80
 #define HEIGHT 30
@@ -10,7 +11,10 @@
 #define MAX_BULLETS 20
 #define BULLET_LIFE 10
 
+#define MAX_MOBS 10
+
 #define STEP 20
+#define RAND_MAX 100
 
 typedef enum {north,east,south,west} dir;
 
@@ -20,7 +24,8 @@ typedef struct {
 	int colour;
 	char character;
 	dir direction;
-} block;
+	int life;
+} dude;
 
 typedef struct {
 	int x;
@@ -34,6 +39,9 @@ typedef struct {
 
 int nextBullet = 0;
 bullet bullets[MAX_BULLETS] = {-1,-1,north,0,0,-1, RED};
+
+int nextMob = 0;
+dude mobs[MAX_MOBS] = {-1,-1,RED,'@',north, -1};
 
 char map[HEIGHT][WIDTH] = {
 	{' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',},
@@ -68,9 +76,9 @@ char map[HEIGHT][WIDTH] = {
 	{' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',}
 };
 
-block player = {10,4,2, ' ', south};
+dude player = {10,4,2,' ', south, 10};
 
-void drawBlock(block obj){
+void drawBlock(dude obj){
 	attron(COLOR_PAIR(obj.colour));
 	mvaddch(obj.y,obj.x,obj.character);
 	attroff(COLOR_PAIR(obj.colour));
@@ -87,24 +95,57 @@ void drawMap(char data[HEIGHT][WIDTH]){
 	}
 }
 
+void drawMobs() {
+	int i;
+	for (i = 0; i < MAX_MOBS; i++) {
+		if (mobs[i].life > -1) {
+			drawBlock(mobs[i]);
+		}
+	}
+}
+
 void drawBullets(){
 	int i;
 	for (i = 0; i < MAX_BULLETS; i++){
 		if (bullets[i].life > -1) {
 			char c;
-			switch (bullets[i].direction) {
-				case north:
-				case south:
-					c = '|';
-					break;
-				case east:
-				case west:
-					c = '-';
-					break;
-			}
+			// switch (bullets[i].direction) {
+			// 	case north:
+			// 	case south:
+			// 		c = 'o';
+			// 		break;
+			// 	case east:
+			// 	case west:
+			// 		c = 'o';
+			// 		break;
+			// }
 			attron(COLOR_PAIR(RED));
-			mvaddch(bullets[i].y,bullets[i].x,c);
+			mvaddch(bullets[i].y,bullets[i].x,'o');
 			attroff(COLOR_PAIR(RED));
+		}
+	}
+}
+
+void spawnMob(){
+	mobs[nextMob].x = 4;
+	mobs[nextMob].y = 4;
+	mobs[nextMob].life = 10;
+	nextMob++;
+	if (nextMob == MAX_MOBS) {
+		nextMob = 0;
+	}
+}
+
+void updateMobs(){
+	if (rand() < 10) {
+		spawnMob();
+	}
+	int i;
+	for (i = 0; i < MAX_MOBS; i++) {
+		if (mobs[i].life > -1) {
+
+		} else {
+			nextMob = i;
 		}
 	}
 }
@@ -136,7 +177,7 @@ void updateBullets(){
 	}
 }
 
-void fireBullet(block from, int speed, int damage){
+void fireBullet(dude from, int speed, int damage){
 	bullets[nextBullet].x = from.x;
 	bullets[nextBullet].y = from.y;
 	bullets[nextBullet].direction = from.direction;
@@ -144,6 +185,9 @@ void fireBullet(block from, int speed, int damage){
 	bullets[nextBullet].damage = damage;
 	bullets[nextBullet].life = BULLET_LIFE;
 	nextBullet++;
+	if (nextBullet == MAX_BULLETS) {
+		nextBullet = 0;
+	}
 }
 
 int canMove(int x, int y) {
@@ -158,15 +202,19 @@ void render(){
 	clear();
 	drawMap(map);
 	drawBullets();
+	//drawMobs();
 	drawBlock(player);
 	refresh();
 }
 
 void update(){
 	updateBullets();
+	updateMobs();
 }
 
 void main(){
+
+	srand(1234);
 
 	initscr();
 	cbreak();
