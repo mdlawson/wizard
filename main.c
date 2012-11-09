@@ -99,7 +99,7 @@ void drawMobs() {
 	int i;
 	for (i = 0; i < MAX_MOBS; i++) {
 		if (mobs[i].life > -1) {
-			drawBlock(mobs[i]);
+			//drawBlock(mobs[i]);
 		}
 	}
 }
@@ -127,8 +127,8 @@ void drawBullets(){
 }
 
 void spawnMob(){
-	mobs[nextMob].x = 4;
-	mobs[nextMob].y = 4;
+	mobs[nextMob].x = 10;
+	mobs[nextMob].y = 5;
 	mobs[nextMob].life = 10;
 	nextMob++;
 	if (nextMob == MAX_MOBS) {
@@ -144,8 +144,6 @@ void updateMobs(){
 	for (i = 0; i < MAX_MOBS; i++) {
 		if (mobs[i].life > -1) {
 
-		} else {
-			nextMob = i;
 		}
 	}
 }
@@ -202,7 +200,7 @@ void render(){
 	clear();
 	drawMap(map);
 	drawBullets();
-	//drawMobs();
+	drawMobs();
 	drawBlock(player);
 	refresh();
 }
@@ -233,6 +231,9 @@ void main(){
 	int step = STEP*1000;
 	int in;
 	int running = 1;
+
+	spawnMob();
+
 	while (running) {
 		usleep(step);
 		in = getch();
