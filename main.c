@@ -14,7 +14,6 @@
 #define MAX_MOBS 10
 
 #define STEP 20
-#define RAND_MAX 100
 
 typedef enum {north,east,south,west} dir;
 
@@ -41,8 +40,7 @@ int nextBullet = 0;
 bullet bullets[MAX_BULLETS] = {-1,-1,north,0,0,-1, RED};
 
 int nextMob = 0;
-dude mobs[MAX_MOBS] = {-1,-1,RED,'@',north, -1};
-
+dude mobs[MAX_MOBS] = {{-1,-1,RED,'f',north, -1},{-1,-1,RED,'f',north, -1},{-1,-1,RED,'f',north, -1},{-1,-1,RED,'f',north, -1},{-1,-1,RED,'f',north, -1},{-1,-1,RED,'f',north, -1},{-1,-1,RED,'f',north, -1},{-1,-1,RED,'f',north, -1},{-1,-1,RED,'f',north, -1},{-1,-1,RED,'f',north, -1}};
 char map[HEIGHT][WIDTH] = {
 	{' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',},
 	{' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','#','#','#','#','#','#','#','#','#','#','#','#','#','#','#','#','#',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',},
@@ -99,7 +97,7 @@ void drawMobs() {
 	int i;
 	for (i = 0; i < MAX_MOBS; i++) {
 		if (mobs[i].life > -1) {
-			//drawBlock(mobs[i]);
+			drawBlock(mobs[i]);
 		}
 	}
 }
@@ -127,8 +125,8 @@ void drawBullets(){
 }
 
 void spawnMob(){
-	mobs[nextMob].x = 10;
-	mobs[nextMob].y = 5;
+	mobs[nextMob].x = random(WIDTH);
+	mobs[nextMob].y = random(HEIGHT);
 	mobs[nextMob].life = 10;
 	nextMob++;
 	if (nextMob == MAX_MOBS) {
@@ -137,7 +135,7 @@ void spawnMob(){
 }
 
 void updateMobs(){
-	if (rand() < 10) {
+	if (random(100) < 10) {
 		spawnMob();
 	}
 	int i;
