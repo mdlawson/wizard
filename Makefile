@@ -1,4 +1,4 @@
-LDFLAGS=-lcurses
+LDFLAGS=-lcurses -lm
 CFLAGS=
 SOURCES=main.c
 EXECUTABLE=game
