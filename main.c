@@ -11,18 +11,31 @@
 #define WIDTH 80
 #define HEIGHT 30
 
-#define GREEN 4
-#define RED 3
-
 #define MAX_BULLETS 20
 #define BULLET_LIFE 30
 
 #define MAX_MOBS 10
 
+#define MAX_LOOT 3
+
 #define SIGHT 8
 
 #define STEP 20
 
+// COLOURS
+
+#define RED 10
+#define GREEN 11
+#define BLUE 12
+#define YELLOW 13
+#define MAGENTA 14
+#define CYAN 15
+#define RED_BG 20
+#define GREEN_BG 21
+#define BLUE_BG 22
+#define YELLOW_BG 23
+#define MAGENTA_BG 24
+#define CYAN_BG 25
 //
 // GLOBALS
 //
@@ -39,14 +52,21 @@ typedef struct {
 	dir direction;
 	int life;
 	int attack;
-} dude;
+} entity;
+
+// Loot structure
+typedef struct {
+	int x;
+	int y;
+	int power;
+} loot;
 
 // Bullet structure
 typedef struct {
 	int x;
 	int y;
 	int colour;
-//	char character;
+	char character;
 	dir direction;
 	int life;
 	int damage;
@@ -55,11 +75,16 @@ typedef struct {
 
 // Bullet pool
 int nextBullet = 0;
-bullet bullets[MAX_BULLETS] = {-1,-1,RED,north,-1,1,1};
+bullet bullets[] = {[0 ... MAX_BULLETS-1] = {-1,-1,RED,'o',north,-1,1,1}};
 
 // Mob pool
 int nextMob = 0;
-dude mobs[MAX_MOBS] = {{-1,-1,RED,'@',north, -1, 1},{-1,-1,RED,'@',north, -1, 1},{-1,-1,RED,'@',north, -1, 1},{-1,-1,RED,'@',north, -1, 1},{-1,-1,RED,'@',north, -1, 1},{-1,-1,RED,'@',north, -1, 1},{-1,-1,RED,'@',north, -1, 1},{-1,-1,RED,'@',north, -1, 1},{-1,-1,RED,'@',north, -1, 1},{-1,-1,RED,'@',north, -1, 1}};
+entity mobs[] = {[0 ... MAX_MOBS-1] = {-1,-1,RED_BG,'@',north, -1, 1}};
+
+// Loot pool
+int nextLoot = 0;
+loot loots[] = {[0 ... MAX_LOOT-1] = {-1,-1,-1}};
+
 
 // Map data
 char map[HEIGHT][WIDTH] = {
@@ -96,7 +121,7 @@ char map[HEIGHT][WIDTH] = {
 };
 
 // Player definition
-dude player = {10,4,2,' ', south, 10};
+entity player = {10,4,BLUE_BG,' ', south, 10};
 
 
 //
@@ -107,7 +132,7 @@ dude player = {10,4,2,' ', south, 10};
 int randInt(int min, int max) { return (rand() % (max+1-min))+min; }
 
 // Spawns a single mob at a random location, taken from free mobs in the mob pool.
-void spawnMob(){
+void spawnMob() {
 	int x,y,found = 0;
 	while (!found) {
 		x = randInt(0,WIDTH);
@@ -123,13 +148,31 @@ void spawnMob(){
 	}
 }
 
+// Spawns a loot at a random location, with random power
+void spawnLoot() {
+	int x,y,found = 0;
+	while (!found) {
+		x = randInt(0,WIDTH);
+		y = randInt(0,HEIGHT);
+		if (canMove(x,y,0)) {found = 1;}
+	}
+	loots[nextLoot].x = x;
+	loots[nextLoot].y = y;
+	loots[nextLoot].power = randInt(0,5);
+	nextLoot++;
+	if (nextLoot == MAX_LOOT) {
+		nextLoot = 0;
+	}
+}
+
 // Fires a bullet originating from the entity from, with speed and damage
-void fireBullet(dude from, int speed, int damage){
+void fireBullet(entity from, int speed){
 	bullets[nextBullet].x = from.x;
 	bullets[nextBullet].y = from.y;
 	bullets[nextBullet].direction = from.direction;
 	bullets[nextBullet].speed = speed;
-	bullets[nextBullet].damage = damage;
+	bullets[nextBullet].damage = from.attack;
+	bullets[nextBullet].colour = from.colour-10;
 	bullets[nextBullet].life = BULLET_LIFE;
 	nextBullet++;
 	if (nextBullet == MAX_BULLETS) {
@@ -155,7 +198,7 @@ int canMove(int x, int y, int mobPassthough) {
 }
 
 // Function to check if a square can be seen by an entity, using sight distance SIGHT
-int canSee(dude from, int x, int y) {
+int canSee(entity from, int x, int y) {
 	int dx = from.x - x;
 	int dy = from.y - y;
 	int d = sqrt(dx*dx+dy*dy);
@@ -167,7 +210,7 @@ int canSee(dude from, int x, int y) {
 //
 
 // Draws an entity
-void drawBlock(dude obj){
+void drawBlock(entity obj){
 	attron(COLOR_PAIR(obj.colour));
 	mvaddch(obj.y,obj.x,obj.character);
 	attroff(COLOR_PAIR(obj.colour));
@@ -199,6 +242,20 @@ void drawMobs() {
 	}
 }
 
+// Draws all the loots
+void drawLoot(){
+	int i;
+	for (i = 0; i < MAX_LOOT; i++) {
+		if (loots[i].power > -1) {
+			if (!SIGHT || (SIGHT && canSee(player, loots[i].x, loots[i].y))) {
+				attron(COLOR_PAIR(loots[i].power+10));
+				mvaddch(loots[i].y,loots[i].x,'=');
+				attroff(COLOR_PAIR(loots[i].power+10));
+			}
+		}
+	}
+}
+
 // Draws all the bullets, if SIGHT is non 0, only visible bullets are drawn
 void drawBullets(){
 	int i;
@@ -216,9 +273,9 @@ void drawBullets(){
 			// 		break;
 			// }
 			if (!SIGHT || (SIGHT && canSee(player,bullets[i].x,bullets[i].y))) {
-				attron(COLOR_PAIR(RED));
-				mvaddch(bullets[i].y,bullets[i].x,'o');
-				attroff(COLOR_PAIR(RED));
+				attron(COLOR_PAIR(bullets[i].colour));
+				mvaddch(bullets[i].y,bullets[i].x,bullets[i].character);
+				attroff(COLOR_PAIR(bullets[i].colour));
 			}
 		}
 	}
@@ -274,12 +331,29 @@ void updateMobs(){
 				// else if we have line of sight with the player, turn and fire a bullet at them
 				} else if (mobs[i].x == player.x) {
 					if (player.y > mobs[i].y) { mobs[i].direction = south; } else { mobs[i].direction = north; }
-					fireBullet(mobs[i],1,mobs[i].attack);
+					fireBullet(mobs[i],1);
 				} else if (mobs[i].y == player.y) {
 					if (player.x > mobs[i].x) { mobs[i].direction = east; } else { mobs[i].direction = west; }
-					fireBullet(mobs[i],1,mobs[i].attack);
+					fireBullet(mobs[i],1);
 				}
 			}
+		}
+	}
+}
+
+// Updates all the loots
+void updateLoot() {
+	int i;
+	if (randInt(0,800) == 1) {
+		spawnLoot();
+	}
+	for (i = 0; i < MAX_LOOT; i++) {
+		// handle loot pickup
+		if (loots[i].power > -1 && player.x == loots[i].x && player.y == loots[i].y) {
+			player.attack = loots[i].power;
+			player.colour = loots[i].power+20;
+			loots[i].power = -1;
+			nextLoot = i;
 		}
 	}
 }
@@ -333,6 +407,7 @@ void render(){
 	drawMap(map);
 	drawBullets();
 	drawMobs();
+	drawLoot();
 	drawBlock(player);
 	refresh();
 }
@@ -341,6 +416,7 @@ void render(){
 void update(){
 	updateBullets();
 	updateMobs();
+	updateLoot();
 	updatePlayer();
 }
 
@@ -360,9 +436,19 @@ void main(){
 
 	// Colour pairs
 	init_pair(1,COLOR_WHITE,COLOR_BLACK);
-	init_pair(2,COLOR_WHITE,COLOR_BLUE);
+	init_pair(2,COLOR_BLACK,COLOR_WHITE);
+
 	init_pair(RED,COLOR_RED,COLOR_BLACK);
 	init_pair(GREEN,COLOR_GREEN,COLOR_BLACK);
+	init_pair(BLUE,COLOR_BLUE,COLOR_BLACK);
+	init_pair(CYAN,COLOR_CYAN,COLOR_BLACK);
+	init_pair(MAGENTA,COLOR_MAGENTA,COLOR_BLACK);
+
+	init_pair(RED_BG,COLOR_BLACK,COLOR_RED);
+	init_pair(GREEN_BG,COLOR_BLACK,COLOR_GREEN);
+	init_pair(BLUE_BG,COLOR_BLACK,COLOR_BLUE);
+	init_pair(CYAN_BG,COLOR_BLACK,COLOR_CYAN);
+	init_pair(MAGENTA_BG,COLOR_BLACK,COLOR_MAGENTA);
 
 	int step = STEP*1000;
 	int in;
@@ -370,6 +456,7 @@ void main(){
 
 	// Spawn one mob to get us started
 	spawnMob();
+	spawnLoot();
 
 	while (running) {
 		usleep(step);
@@ -397,7 +484,7 @@ void main(){
 				if (canMove(player.x-1,player.y,1)) { player.x--; }
 				break;
 			case 'z':
-				fireBullet(player,1,1);
+				fireBullet(player,1);
 			default:
 				break;
 		}
@@ -405,7 +492,7 @@ void main(){
 		// Death
 		if (player.life < 0) {
 			clear();
-			mvprintw(14,38,"### GAME OVER ###");
+			mvprintw(14,31,"### GAME OVER ###");
 			refresh();
 			usleep(5000000);
 			running = 0;
