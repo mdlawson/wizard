@@ -18,7 +18,7 @@
 
 #define MAX_LOOT 3
 
-#define SIGHT 8
+#define SIGHT 12
 
 #define STEP 20
 
@@ -121,8 +121,8 @@ char map[HEIGHT][WIDTH] = {
 };
 
 // Player definition
-entity player = {10,4,BLUE_BG,' ', south, 10};
-
+entity player = {10,4,BLUE_BG,' ', south, 20, 2};
+int killCount = 0;
 
 //
 // MISC
@@ -281,6 +281,12 @@ void drawBullets(){
 	}
 }
 
+void drawUI() {
+	mvprintw(0,0,"Life: %d",player.life);
+	mvprintw(1,0,"Attack: %d",player.attack);
+	mvprintw(2,0,"Kills: %d",killCount);
+}
+
 // 
 // UPDATES
 //
@@ -300,6 +306,10 @@ void updateMobs(){
 				if (bullets[j].life > -1 && bullets[j].x == mobs[i].x && bullets[j].y == mobs[i].y) {
 					mobs[i].life -= bullets[j].damage;
 					bullets[j].life = -1;
+					if (mobs[i].life < 0) { // mob just died.
+						nextMob = i;
+						killCount++;
+					}
 				}
 			}
 			// 4/50 chance of moving randomly each tick
@@ -406,9 +416,10 @@ void render(){
 	clear();
 	drawMap(map);
 	drawBullets();
-	drawMobs();
 	drawLoot();
 	drawBlock(player);
+	drawMobs();
+	drawUI();
 	refresh();
 }
 
