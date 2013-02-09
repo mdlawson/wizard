@@ -18,7 +18,7 @@
 
 #define MAX_LOOT 3
 
-#define SIGHT 12
+#define SIGHT 20	
 
 #define STEP 20
 
@@ -52,6 +52,7 @@ typedef struct {
 	dir direction;
 	int life;
 	int attack;
+	int type;
 } entity;
 
 // Loot structure
@@ -79,7 +80,8 @@ bullet bullets[] = {[0 ... MAX_BULLETS-1] = {-1,-1,RED,'o',north,-1,1,1}};
 
 // Mob pool
 int nextMob = 0;
-entity mobs[] = {[0 ... MAX_MOBS-1] = {-1,-1,RED_BG,'@',north, -1, 1}};
+entity mobs[] = {[0 ... MAX_MOBS-1] = {-1,-1,RED_BG,'@',north, -1, 1, 0}};
+int spawnRate = 200;
 
 // Loot pool
 int nextLoot = 0;
@@ -121,8 +123,9 @@ char map[HEIGHT][WIDTH] = {
 };
 
 // Player definition
-entity player = {10,4,BLUE_BG,' ', south, 20, 2};
+entity player = {10,4,BLUE_BG,' ', south, 20, 2, 0};
 int killCount = 0;
+int charge = 2;
 
 //
 // MISC
@@ -133,12 +136,15 @@ int randInt(int min, int max) { return (rand() % (max+1-min))+min; }
 
 // Spawns a single mob at a random location, taken from free mobs in the mob pool.
 void spawnMob() {
+	spawnRate -= 10;
 	int x,y,found = 0;
 	while (!found) {
 		x = randInt(0,WIDTH);
 		y = randInt(0,HEIGHT);
 		if (canMove(x,y,0)) {found = 1;}
 	} 
+	mobs[nextMob].type = randInt(0,1);
+	if (mobs[nextMob].type == 1) {mobs[nextMob].colour = MAGENTA_BG;} 
 	mobs[nextMob].x = x;
 	mobs[nextMob].y = y;
 	mobs[nextMob].life = 10;
@@ -198,11 +204,11 @@ int canMove(int x, int y, int mobPassthough) {
 }
 
 // Function to check if a square can be seen by an entity, using sight distance SIGHT
-int canSee(entity from, int x, int y) {
+int canSee(entity from, int x, int y, int distance) {
 	int dx = from.x - x;
 	int dy = from.y - y;
 	int d = sqrt(dx*dx+dy*dy);
-	if (d > SIGHT) { return 0; } else { return 1; }
+	if (d > distance) { return 0; } else { return 1; }
 } 
 
 //
@@ -221,7 +227,7 @@ void drawMap(char data[HEIGHT][WIDTH]){
 	int x,y;
 	for (y = 0; y < HEIGHT; y++){
 		for (x = 0; x < WIDTH; x++) {
-			if (!SIGHT || (SIGHT && canSee(player,x,y))) {
+			if (!SIGHT || (SIGHT && canSee(player,x,y, SIGHT))) {
 				//attron(COLOR_PAIR(data[y][x]));
 				mvaddch(y,x,data[y][x]);
 				//attron(COLOR_PAIR(data[y][x]));	
@@ -235,7 +241,7 @@ void drawMobs() {
 	int i;
 	for (i = 0; i < MAX_MOBS; i++) {
 		if (mobs[i].life > -1) {
-			if (!SIGHT || (SIGHT && canSee(player, mobs[i].x,mobs[i].y))) {
+			if (!SIGHT || (SIGHT && canSee(player, mobs[i].x,mobs[i].y, SIGHT))) {
 				drawBlock(mobs[i]);
 			}
 		}
@@ -247,7 +253,7 @@ void drawLoot(){
 	int i;
 	for (i = 0; i < MAX_LOOT; i++) {
 		if (loots[i].power > -1) {
-			if (!SIGHT || (SIGHT && canSee(player, loots[i].x, loots[i].y))) {
+			if (!SIGHT || (SIGHT && canSee(player, loots[i].x, loots[i].y, SIGHT))) {
 				attron(COLOR_PAIR(loots[i].power+10));
 				mvaddch(loots[i].y,loots[i].x,'=');
 				attroff(COLOR_PAIR(loots[i].power+10));
@@ -272,7 +278,7 @@ void drawBullets(){
 			// 		c = 'o';
 			// 		break;
 			// }
-			if (!SIGHT || (SIGHT && canSee(player,bullets[i].x,bullets[i].y))) {
+			if (!SIGHT || (SIGHT && canSee(player,bullets[i].x,bullets[i].y, SIGHT))) {
 				attron(COLOR_PAIR(bullets[i].colour));
 				mvaddch(bullets[i].y,bullets[i].x,bullets[i].character);
 				attroff(COLOR_PAIR(bullets[i].colour));
@@ -285,6 +291,7 @@ void drawUI() {
 	mvprintw(0,0,"Life: %d",player.life);
 	mvprintw(1,0,"Attack: %d",player.attack);
 	mvprintw(2,0,"Kills: %d",killCount);
+	//mvprintw(3,0,"Charge: %d",charge);
 }
 
 // 
@@ -294,13 +301,15 @@ void drawUI() {
 // Updates all the mobs
 void updateMobs(){
 	// 1/400 chance of spawing a mob each tick
-	if (randInt(0,400) == 1) {
+	if (randInt(0,spawnRate) == 1) {
 		spawnMob();
 	}
 	int i;
 	for (i = 0; i < MAX_MOBS; i++) {
 		if (mobs[i].life > -1) {
 			int j;
+			int dx;
+			int dy;
 			// If a live mob is on top of a live bullet, take damage
 			for (j = 0; j < MAX_BULLETS; j++) {
 				if (bullets[j].life > -1 && bullets[j].x == mobs[i].x && bullets[j].y == mobs[i].y) {
@@ -312,43 +321,76 @@ void updateMobs(){
 					}
 				}
 			}
-			// 4/50 chance of moving randomly each tick
-			switch (randInt(0,50)) {
-				case 0:
-					mobs[i].direction = north;
-					if (canMove(mobs[i].x,mobs[i].y-1,0)) { mobs[i].y--; }
-					break;
-				case 1:
-					mobs[i].direction = south;
-					if (canMove(mobs[i].x,mobs[i].y+1,0)) { mobs[i].y++; }
-					break;
-				case 2:
-					mobs[i].direction = east;
-					if (canMove(mobs[i].x+1,mobs[i].y,0)) { mobs[i].x++; }
-					break;
-				case 3:
-					mobs[i].direction = west;
-					if (canMove(mobs[i].x-1,mobs[i].y,0)) { mobs[i].x--; }
-					break;
-				default:
-					break;
-			}
-			// 1/20 chance of attempting to attack each tick
-			if (randInt(0,20) == 1) {
-				// If we are on top of the player, hit them directly
-				if (mobs[i].x == player.x && mobs[i].y == player.y) {
-					player.life--;
-				// else if we have line of sight with the player, turn and fire a bullet at them
-				} else if (mobs[i].x == player.x) {
-					if (player.y > mobs[i].y) { mobs[i].direction = south; } else { mobs[i].direction = north; }
-					fireBullet(mobs[i],1);
-				} else if (mobs[i].y == player.y) {
-					if (player.x > mobs[i].x) { mobs[i].direction = east; } else { mobs[i].direction = west; }
-					fireBullet(mobs[i],1);
+			// CHASEY MOBS
+			if (canSee(mobs[i], player.x, player.y, 10)  ) {
+
+				if (mobs[i].type == 0){
+					if(randInt(0,30) == 1) {
+						dx = player.x - mobs[i].x;
+						dy = player.y - mobs[i].y;
+
+						if (abs(dx) >= abs(dy)){
+							if (dx >= 0){
+								mobs[i].direction = east;
+								if (canMove(mobs[i].x+1,mobs[i].y,0)) { mobs[i].x++; }
+							}else{
+								mobs[i].direction = west;
+						 		if (canMove(mobs[i].x-1,mobs[i].y,0)) { mobs[i].x--; }
+							}
+						}else{
+							if (dy <= 0){
+								mobs[i].direction = north;
+						 		if (canMove(mobs[i].x,mobs[i].y-1,0)) { mobs[i].y--; }
+							}else{
+								mobs[i].direction = south;
+						 		if (canMove(mobs[i].x,mobs[i].y+1,0)) { mobs[i].y++; }
+							}
+						}
+						if (mobs[i].x == player.x && mobs[i].y == player.y) {
+							player.life--;
+						}
+					}
+				}else{
+					// SHOOTY MOBS
+					//4/50 chance of moving randomly each tick
+					switch (randInt(0,50)) {
+						case 0:
+							mobs[i].direction = north;
+							if (canMove(mobs[i].x,mobs[i].y-1,0)) { mobs[i].y--; }
+							break;
+						case 1:
+							mobs[i].direction = south;
+							if (canMove(mobs[i].x,mobs[i].y+1,0)) { mobs[i].y++; }
+							break;
+						case 2:
+							mobs[i].direction = east;
+							if (canMove(mobs[i].x+1,mobs[i].y,0)) { mobs[i].x++; }
+							break;
+						case 3:
+							mobs[i].direction = west;
+							if (canMove(mobs[i].x-1,mobs[i].y,0)) { mobs[i].x--; }
+							break;
+						default:
+							break;
+					}
+					//1/20 chance of attempting to attack each tick
+					if (randInt(0,20) == 1) {
+						// If we are on top of the player, hit them directly
+						if (mobs[i].x == player.x && mobs[i].y == player.y) {
+							player.life--;
+						// else if we have line of sight with the player, turn and fire a bullet at them
+						} else if (mobs[i].x == player.x) {
+							if (player.y > mobs[i].y) { mobs[i].direction = south; } else { mobs[i].direction = north; }
+							fireBullet(mobs[i],1);
+						} else if (mobs[i].y == player.y) {
+							if (player.x > mobs[i].x) { mobs[i].direction = east; } else { mobs[i].direction = west; }
+							fireBullet(mobs[i],1);
+						}
+					}
 				}
 			}
 		}
-	}
+	}	
 }
 
 // Updates all the loots
@@ -420,7 +462,7 @@ void render(){
 	drawBlock(player);
 	drawMobs();
 	drawUI();
-	refresh();
+	
 }
 
 // Main update, calls all update functions
@@ -471,7 +513,7 @@ void main(){
 
 	while (running) {
 		usleep(step);
-
+		int errcount = 0;
 		// Input
 		in = getch();
 		switch(in){
@@ -495,7 +537,10 @@ void main(){
 				if (canMove(player.x-1,player.y,1)) { player.x--; }
 				break;
 			case 'z':
+				//charge++;
 				fireBullet(player,1);
+			// case ERR:
+			// 	if (++errcount > 20) {charge = 0; errcount = 0;}
 			default:
 				break;
 		}
@@ -510,6 +555,8 @@ void main(){
 		}
 		update();
 		render();
+		//mvprintw(4,0,"Errcount: %d",errcount);
+		refresh();
 	}
 	endwin();
 	return;
